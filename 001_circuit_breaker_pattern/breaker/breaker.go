@@ -174,17 +174,29 @@ func (cb *CircuitBreaker) closedStateExecution(handler HandlerFunc) (any, error)
 // If the configured interval has passed since the last failure, it resets the failure count,
 // transitions the circuit breaker to the half-open state, and allows the request to proceed.
 // Otherwise, it blocks the request and returns an error indicating that the circuit is open.
-func (cb *CircuitBreaker) openStateExecution() error {
-	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
+func (cb *CircuitBreaker) openStateExecution(handler HandlerFunc) (any, error) {
 	if time.Since(cb.lastFailure) >= cb.setting.Interval {
+		cb.mu.Lock()
 		cb.count.Reset()
 		cb.state = StateHalfOpen
-		return nil
+		cb.mu.Unlock()
+
+		result, err := cb.executionWithTimeout(handler)
+		if err != nil {
+			cb.mu.Lock()
+			cb.count.OnFailure()
+			cb.lastFailure = time.Now()
+			cb.mu.Unlock()
+		}
+
+		return result, nil
 	}
 
-	return errors.New("request blocked due to circuit open")
+	remaining := cb.setting.Interval - time.Since(cb.lastFailure)
+	if remaining < 0 {
+		remaining = 0
+	}
+	return nil, errors.New("request blocked due to circuit open; try again in " + remaining.String())
 }
 
 // halfOpenStateExecution attempts to execute the provided handler function while the circuit breaker is in the half-open state.
@@ -207,6 +219,9 @@ func (cb *CircuitBreaker) halfOpenStateExecution(handler HandlerFunc) (any, erro
 
 	cb.mu.Lock()
 	cb.count.OnSuccess()
+	// Note: sinceLastFailure is based on the last failure timestamp,
+	// which is only updated on failures. This is intentional, as the interval
+	// check is meant to determine how long it has been since the last failure.
 	sinceLastFailure := time.Since(cb.lastFailure)
 	if sinceLastFailure >= cb.setting.Interval ||
 		successRate >= cb.setting.SuccessRateThreshold {
@@ -214,7 +229,6 @@ func (cb *CircuitBreaker) halfOpenStateExecution(handler HandlerFunc) (any, erro
 		cb.count.Reset()
 	}
 	cb.mu.Unlock()
-
 	return result, nil
 }
 
@@ -228,8 +242,8 @@ func (cb *CircuitBreaker) Fire(handler HandlerFunc) (any, error) {
 	case StateHalfOpen:
 		return cb.halfOpenStateExecution(handler)
 	case StateOpen:
-		return nil, cb.openStateExecution()
+		return cb.openStateExecution(handler)
 	}
 
-	return nil, nil
+	return nil, errors.New("invalid circuit breaker state")
 }
