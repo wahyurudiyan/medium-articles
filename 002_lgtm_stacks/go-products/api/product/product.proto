@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package api.product;
+
+import "google/api/annotations.proto";
+
+option go_package = "go-products/api/product;product";
+option java_multiple_files = true;
+option java_package = "api.products";
+
+service Products {
+	rpc CreateProducts (CreateProductsRequest) returns (CreateProductsReply) {
+		option (google.api.http) = {
+			post: "/products",
+			body: "*"
+		};
+	};
+	rpc UpdateProducts (UpdateProductsRequest) returns (UpdateProductsReply);
+	rpc DeleteProducts (DeleteProductsRequest) returns (DeleteProductsReply);
+	rpc GetProducts (GetProductsRequest) returns (GetProductsReply);
+	rpc ListProducts (ListProductsRequest) returns (ListProductsReply);
+}
+
+message Product {
+	int64 ID 		= 1 [json_name="id"];
+	string SKU 		= 2 [json_name="sku"];
+	string Name 	= 3 [json_name="name"];
+	int32 Quantity 	= 4 [json_name="quantity"];
+	int64 Price 	= 5 [json_name="price"];
+}
+
+message CreateProductsRequest {
+	repeated Product products = 1;
+}
+message CreateProductsReply {}
+
+message UpdateProductsRequest {}
+message UpdateProductsReply {}
+
+message DeleteProductsRequest {}
+message DeleteProductsReply {}
+
+message GetProductsRequest {}
+message GetProductsReply {}
+
+message ListProductsRequest {}
+message ListProductsReply {}
