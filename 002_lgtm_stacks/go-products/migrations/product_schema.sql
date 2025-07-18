@@ -5,8 +5,8 @@ CREATE TABLE products (
     name        VARCHAR(64) NOT NULL,
     quantity    BIGINT NOT NULL,
     price       BIGINT NOT NULL,
-    created_at  TIMESTAMP NOT NULL DEFAULT (timezone('utc', now())),
-    updated_at  TIMESTAMP NOT NULL DEFAULT (timezone('utc', now())),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc', now())),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT (timezone('utc', now())),
     deleted_at  TIMESTAMP,
 
     CONSTRAINT products_pkey PRIMARY KEY (id),

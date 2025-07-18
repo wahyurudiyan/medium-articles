@@ -16,62 +16,20 @@ type CreateProductsParams struct {
 	Price    int64
 }
 
-const getProductByID = `-- name: GetProductByID :one
-SELECT id, sku, name, quantity, price, created_at, updated_at, deleted_at FROM products
-WHERE id = $1 AND deleted_at IS NULL
-`
-
-func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error) {
-	row := q.db.QueryRow(ctx, getProductByID, id)
-	var i Product
-	err := row.Scan(
-		&i.ID,
-		&i.Sku,
-		&i.Name,
-		&i.Quantity,
-		&i.Price,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-	)
-	return i, err
-}
-
-const getProductBySKU = `-- name: GetProductBySKU :one
-SELECT id, sku, name, quantity, price, created_at, updated_at, deleted_at FROM products
-WHERE sku = $1 AND deleted_at IS NULL
-`
-
-func (q *Queries) GetProductBySKU(ctx context.Context, sku string) (Product, error) {
-	row := q.db.QueryRow(ctx, getProductBySKU, sku)
-	var i Product
-	err := row.Scan(
-		&i.ID,
-		&i.Sku,
-		&i.Name,
-		&i.Quantity,
-		&i.Price,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-	)
-	return i, err
-}
-
-const listProducts = `-- name: ListProducts :many
+const readListProducts = `-- name: ReadListProducts :many
 SELECT id, sku, name, quantity, price, created_at, updated_at, deleted_at FROM products
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
 
-type ListProductsParams struct {
+type ReadListProductsParams struct {
 	Limit  int32
 	Offset int32
 }
 
-func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProducts, arg.Limit, arg.Offset)
+func (q *Queries) ReadListProducts(ctx context.Context, arg ReadListProductsParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, readListProducts, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +55,48 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]P
 		return nil, err
 	}
 	return items, nil
+}
+
+const readProductByID = `-- name: ReadProductByID :one
+SELECT id, sku, name, quantity, price, created_at, updated_at, deleted_at FROM products
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) ReadProductByID(ctx context.Context, id int64) (Product, error) {
+	row := q.db.QueryRow(ctx, readProductByID, id)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const readProductBySKU = `-- name: ReadProductBySKU :one
+SELECT id, sku, name, quantity, price, created_at, updated_at, deleted_at FROM products
+WHERE sku = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) ReadProductBySKU(ctx context.Context, sku string) (Product, error) {
+	row := q.db.QueryRow(ctx, readProductBySKU, sku)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Sku,
+		&i.Name,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const softDeleteProduct = `-- name: SoftDeleteProduct :one

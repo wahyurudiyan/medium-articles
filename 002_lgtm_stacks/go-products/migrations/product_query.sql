@@ -1,12 +1,12 @@
--- name: GetProductByID :one
+-- name: ReadProductByID :one
 SELECT * FROM products
 WHERE id = $1 AND deleted_at IS NULL;
 
--- name: GetProductBySKU :one
+-- name: ReadProductBySKU :one
 SELECT * FROM products
 WHERE sku = $1 AND deleted_at IS NULL;
 
--- name: ListProducts :many
+-- name: ReadListProducts :many
 SELECT * FROM products
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC

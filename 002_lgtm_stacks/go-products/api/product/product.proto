@@ -3,6 +3,7 @@ syntax = "proto3";
 package api.product;
 
 import "google/api/annotations.proto";
+// import "../errors/errors.proto";
 
 option go_package = "go-products/api/product;product";
 option java_multiple_files = true;
@@ -15,10 +16,41 @@ service Products {
 			body: "*"
 		};
 	};
-	rpc UpdateProducts (UpdateProductsRequest) returns (UpdateProductsReply);
-	rpc DeleteProducts (DeleteProductsRequest) returns (DeleteProductsReply);
-	rpc GetProducts (GetProductsRequest) returns (GetProductsReply);
-	rpc ListProducts (ListProductsRequest) returns (ListProductsReply);
+	rpc UpdateProducts (UpdateProductsRequest) returns (UpdateProductsReply) {
+		option (google.api.http) = {
+			put: "/products",
+			body: "*"
+		};
+	};
+	rpc DeleteProducts (DeleteProductsRequest) returns (DeleteProductsReply) {
+		option (google.api.http) = {
+			delete: "/products/{sku}",
+		};
+	};
+	rpc ListProducts (ListProductsRequest) returns (ListProductsReply) {
+		option (google.api.http) = {
+			get: "/products",
+		};
+	};
+	rpc GetProduct (GetProductRequest) returns (GetProductReply) {
+		option (google.api.http) = {
+			get: "/products/{id}",
+			additional_bindings {
+				get: "/products/sku/{sku}"
+			},
+		};
+	};
+}
+
+message Error {
+    string code     = 1 [json_name="code"];
+    string reason   = 2 [json_name="reason"]; 
+}
+
+message CommonResponse {
+	bool success 		= 1 [json_name="success"];
+	string message		= 2 [json_name="message"];
+	Error error			= 3 [json_name="error"];
 }
 
 message Product {
@@ -32,16 +64,38 @@ message Product {
 message CreateProductsRequest {
 	repeated Product products = 1;
 }
-message CreateProductsReply {}
+message CreateProductsReply {
+	CommonResponse meta = 1;
+}
 
-message UpdateProductsRequest {}
-message UpdateProductsReply {}
+message UpdateProductsRequest {
+	Product product = 1;
+}
+message UpdateProductsReply {
+	CommonResponse meta = 1;
+}
 
-message DeleteProductsRequest {}
-message DeleteProductsReply {}
+message DeleteProductsRequest {
+	string sku = 1;
+}
+message DeleteProductsReply {
+	CommonResponse meta = 1;
+}
 
-message GetProductsRequest {}
-message GetProductsReply {}
+message GetProductRequest {
+	int64 id 	= 1 [json_name="id"];
+	string sku 	= 2 [json_name="sku"];
+}
+message GetProductReply {
+	Product product		= 1 [json_name="product"];
+	CommonResponse meta = 2 [json_name="meta"];
+}
 
-message ListProductsRequest {}
-message ListProductsReply {}
+message ListProductsRequest {
+	int32 page 		= 1 [json_name="page"];
+	int32 pageSize 	= 2 [json_name="page_size"];
+}
+message ListProductsReply {
+	repeated Product products 	= 1 [json_name="products"];
+	CommonResponse meta 		= 2 [json_name="meta"];
+}

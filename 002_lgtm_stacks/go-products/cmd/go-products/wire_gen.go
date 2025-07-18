@@ -26,7 +26,7 @@ import (
 
 // wireApp init kratos application.
 func wireApp(bootstrap *conf.Bootstrap, conn *pgx.Conn, tracer trace.Tracer, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
-	iProductUsecase := product2.NewProductUsecase(bootstrap, queries)
+	iProductUsecase := product2.NewProductUsecase(bootstrap, tracer, queries)
 	productsService := service.NewProductsService(bootstrap, tracer, iProductUsecase)
 	grpcServer := server.NewGRPCServer(bootstrap, productsService)
 	httpServer := server.NewHTTPServer(bootstrap, productsService)

@@ -11,6 +11,7 @@ import (
 	productRepo "go-products/internal/data/product"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -52,26 +53,175 @@ func (s *ProductsService) CreateProducts(ctx context.Context, req *pb.CreateProd
 		})
 	}
 
-	if err := s.productUc.AddProducts(ctx, products); err != nil {
+	if err := s.productUc.CreateProducts(ctx, products); err != nil {
 		log.Context(ctx).Errorw("Cannot insert product(s)!", map[string]interface{}{
 			"error": err,
 		})
 		return nil, err
 	}
 
-	log.Context(ctx).Info("Product saved!")
-
-	return &pb.CreateProductsReply{}, nil
+	return &pb.CreateProductsReply{
+		Meta: &pb.CommonResponse{
+			Success: true,
+			Message: "created successfully",
+		},
+	}, nil
 }
 func (s *ProductsService) UpdateProducts(ctx context.Context, req *pb.UpdateProductsRequest) (*pb.UpdateProductsReply, error) {
-	return &pb.UpdateProductsReply{}, nil
+	ctx, span := s.tracer.Start(ctx, "products.ProductService.UpdateProducts")
+	defer span.End()
+
+	if req.Product == nil || req.Product.SKU == "" {
+		err := errors.New("product data or SKU is missing")
+		log.Context(ctx).Errorw("Invalid update request", map[string]interface{}{
+			"error": err,
+		})
+		return &pb.UpdateProductsReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	product := &productRepo.Product{
+		Sku:      req.Product.SKU,
+		Name:     req.Product.Name,
+		Price:    req.Product.Price,
+		Quantity: int64(req.Product.Quantity),
+	}
+
+	_, err := s.productUc.UpdateProduct(ctx, product)
+	if err != nil {
+		log.Context(ctx).Errorw("Failed to update product", map[string]interface{}{
+			"error": err,
+		})
+		return &pb.UpdateProductsReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	return &pb.UpdateProductsReply{
+		Meta: &pb.CommonResponse{
+			Success: true,
+			Message: "updated successfully",
+		},
+	}, nil
 }
+
 func (s *ProductsService) DeleteProducts(ctx context.Context, req *pb.DeleteProductsRequest) (*pb.DeleteProductsReply, error) {
-	return &pb.DeleteProductsReply{}, nil
+	ctx, span := s.tracer.Start(ctx, "products.ProductService.DeleteProducts")
+	defer span.End()
+
+	if req.Sku == "" {
+		err := errors.New("SKU is required for deletion")
+		log.Context(ctx).Errorw("DeleteProducts error", map[string]interface{}{"error": err})
+		return &pb.DeleteProductsReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	if err := s.productUc.DeleteProduct(ctx, req.Sku); err != nil {
+		log.Context(ctx).Errorw("Failed to delete product", map[string]interface{}{"error": err})
+		return &pb.DeleteProductsReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	return &pb.DeleteProductsReply{
+		Meta: &pb.CommonResponse{
+			Success: true,
+			Message: "deleted succesfully",
+		},
+	}, nil
 }
-func (s *ProductsService) GetProducts(ctx context.Context, req *pb.GetProductsRequest) (*pb.GetProductsReply, error) {
-	return &pb.GetProductsReply{}, nil
+
+func (s *ProductsService) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.GetProductReply, error) {
+	ctx, span := s.tracer.Start(ctx, "products.ProductService.GetProducts")
+	defer span.End()
+
+	if req.Sku == "" && req.Id == 0 {
+		err := errors.New("must provide SKU or ID")
+		log.Context(ctx).Errorw("Invalid GetProducts request", map[string]interface{}{"error": err})
+		return &pb.GetProductReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	var (
+		product *productRepo.Product
+		err     error
+	)
+
+	if req.Sku != "" {
+		product, err = s.productUc.FetchProductBySKU(ctx, req.Sku)
+	} else {
+		product, err = s.productUc.FetchProductByID(ctx, req.Id)
+	}
+
+	if err != nil {
+		log.Context(ctx).Errorw("Failed to fetch product", map[string]interface{}{"error": err})
+		return &pb.GetProductReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	pbProduct := &pb.Product{
+		ID:       product.ID,
+		SKU:      product.Sku,
+		Name:     product.Name,
+		Price:    product.Price,
+		Quantity: int32(product.Quantity),
+	}
+
+	return &pb.GetProductReply{
+		Product: pbProduct,
+		Meta: &pb.CommonResponse{
+			Success: true,
+			Message: "product found",
+		},
+	}, nil
 }
+
 func (s *ProductsService) ListProducts(ctx context.Context, req *pb.ListProductsRequest) (*pb.ListProductsReply, error) {
-	return &pb.ListProductsReply{}, nil
+	ctx, span := s.tracer.Start(ctx, "products.ProductService.ListProducts")
+	defer span.End()
+
+	products, err := s.productUc.FetchProducts(ctx, req.Page, req.PageSize)
+	if err != nil {
+		log.Context(ctx).Errorw("Failed to list products", map[string]interface{}{"error": err})
+		return &pb.ListProductsReply{
+			Meta: &pb.CommonResponse{
+				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
+			},
+		}, err
+	}
+
+	var result []*pb.Product
+	for _, p := range products {
+		result = append(result, &pb.Product{
+			ID:       p.ID,
+			SKU:      p.Sku,
+			Name:     p.Name,
+			Price:    p.Price,
+			Quantity: int32(p.Quantity),
+		})
+	}
+
+	return &pb.ListProductsReply{
+		Products: result,
+		Meta: &pb.CommonResponse{
+			Success: true,
+			Message: "product found",
+		},
+	}, nil
 }
