@@ -9,11 +9,13 @@ package main
 import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	"go-products/internal/biz/product"
+	"github.com/jackc/pgx/v5"
+	product2 "go-products/internal/biz/product"
 	"go-products/internal/conf"
-	"go-products/internal/data"
+	"go-products/internal/data/product"
 	"go-products/internal/server"
 	"go-products/internal/service"
+	"go.opentelemetry.io/otel/trace"
 )
 
 import (
@@ -23,18 +25,12 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
-	dataData, cleanup, err := data.NewData(confData, logger)
-	if err != nil {
-		return nil, nil, err
-	}
-	iProductRepo := data.NewProductRepo(dataData)
-	iProductUsecase := product.NewProductUsecase(confData, iProductRepo)
-	productsService := service.NewProductsService(confData, iProductUsecase)
-	grpcServer := server.NewGRPCServer(confServer, productsService, logger)
-	httpServer := server.NewHTTPServer(confServer, productsService, logger)
+func wireApp(bootstrap *conf.Bootstrap, conn *pgx.Conn, tracer trace.Tracer, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
+	iProductUsecase := product2.NewProductUsecase(bootstrap, queries)
+	productsService := service.NewProductsService(bootstrap, tracer, iProductUsecase)
+	grpcServer := server.NewGRPCServer(bootstrap, productsService)
+	httpServer := server.NewHTTPServer(bootstrap, productsService)
 	app := newApp(logger, grpcServer, httpServer)
 	return app, func() {
-		cleanup()
 	}, nil
 }

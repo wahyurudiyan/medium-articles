@@ -1,3 +1,10 @@
+application:
+  name: product-service
+  version: 1.0.0
+logger:
+  level: debug
+  output: stdout
+  encoder: json
 server:
   http:
     addr: 0.0.0.0:8000

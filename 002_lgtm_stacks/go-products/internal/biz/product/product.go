@@ -2,30 +2,30 @@ package product
 
 import (
 	"context"
-	"go-products/ent"
 	"go-products/internal/conf"
-	"go-products/internal/data"
+	productRepo "go-products/internal/data/product"
 )
 
 type usecase struct {
-	conf        *conf.Data
-	productRepo data.IProductRepo
+	conf        *conf.Bootstrap
+	productRepo *productRepo.Queries
 }
 
 type IProductUsecase interface {
-	AddProducts(ctx context.Context, items ent.Products) error
+	AddProducts(ctx context.Context, items []productRepo.CreateProductsParams) error
 }
 
-func NewProductUsecase(c *conf.Data, productRepo data.IProductRepo) IProductUsecase {
+func NewProductUsecase(c *conf.Bootstrap, productRepo *productRepo.Queries) IProductUsecase {
 	return &usecase{
 		conf:        c,
 		productRepo: productRepo,
 	}
 }
 
-func (uc *usecase) AddProducts(ctx context.Context, items ent.Products) error {
-	if err := uc.productRepo.CreateProducts(ctx, items); err != nil {
+func (uc *usecase) AddProducts(ctx context.Context, items []productRepo.CreateProductsParams) error {
+	if _, err := uc.productRepo.CreateProducts(ctx, items); err != nil {
 		return err
 	}
+
 	return nil
 }

@@ -1,50 +1,36 @@
 package data
 
 import (
-	"database/sql"
-	"go-products/ent"
+	"context"
 	"go-products/internal/conf"
 
-	entsql "entgo.io/ent/dialect/sql"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/wire"
+	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewProductRepo)
+// var ProviderSet = wire.NewSet(NewData)
 
 // Data .
 type Data struct {
 	// TODO wrapped database client
-	conf  *conf.Data
-	dbCli *ent.Client
+	config *conf.Bootstrap
+	tracer trace.Tracer
 }
 
 // NewData .
-func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
-	conn, err := sql.Open(c.Database.Driver, c.Database.Source)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	drv := entsql.OpenDB(c.Database.Driver, conn)
-	if err := drv.DB().Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	dbCli := ent.NewClient(ent.Driver(drv))
-	d := &Data{
-		conf:  c,
-		dbCli: dbCli,
-	}
-
+func NewData(c *conf.Bootstrap, conn *pgx.Conn, tracer trace.Tracer) (*Data, func(), error) {
 	cleanup := func() {
-		if err := drv.Close(); err != nil {
+		if err := conn.Close(context.Background()); err != nil {
 			log.Fatalw("data cleanup failed", map[string]string{"error": err.Error()})
 		}
-		log.NewHelper(logger).Info("closing the data resources")
+		log.Info("closing the data resources")
 	}
 
-	return d, cleanup, nil
+	return &Data{
+		config: c,
+		tracer: tracer,
+	}, cleanup, nil
 }

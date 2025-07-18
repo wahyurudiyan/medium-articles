@@ -5,9 +5,33 @@ option go_package = "go-products/internal/conf;conf";
 
 import "google/protobuf/duration.proto";
 
+enum log_output {
+  stdout  = 0;
+  stderr  = 1;
+  file    = 2;
+}
+
+enum log_encoder {
+  console = 0;
+  json    = 1;
+}
+
 message Bootstrap {
   Server server = 1;
   Data data = 2;
+  Apps application = 3;
+  Logger logger = 4;
+}
+
+message Apps {
+  string name = 1;
+  string version = 2;
+}
+
+message Logger {
+  string level        = 1;
+  log_output output   = 2;
+  log_encoder encoder = 3;
 }
 
 message Server {
