@@ -1,0 +1,71 @@
+services:
+  application:
+    container_name: application
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - microservices
+    volumes:
+      - ./configs/container:/data/conf
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:17.5
+    container_name: postgres
+    environment:
+      - POSTGRES_PASSWORD=secret
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - microservices
+  alloy:
+    image: grafana/alloy:latest
+    container_name: grafana-alloy
+    ports:
+      - "12345:12345"
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./configs/grafana/config.alloy:/etc/alloy/config.alloy
+      # give access to running docker containers for discovery.docker
+      - /var/run/docker.sock:/var/run/docker.sock 
+      # give access to docker's log files directory (optional)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro 
+    depends_on:
+      - application
+    networks:
+      - microservices
+  loki:
+    image: grafana/loki:latest
+    container_name: grafana-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./configs/grafana/loki.yaml:/etc/loki/local-config.yaml
+    depends_on:
+      - alloy
+    networks:
+      - microservices
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+    networks:
+      - microservices
+networks:
+  microservices:
+volumes:
+  postgres:
+  grafana-data:

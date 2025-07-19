@@ -1,0 +1,68 @@
+logging {
+  level = "info"
+  format = "logfmt"
+}
+
+livedebugging {
+  enabled = true
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "ingestion_relabel" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex = "/(.*)"
+    target_label = "service_name"
+    }
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.ingestion_relabel.output
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+	forward_to = [loki.write.local.receiver]
+
+	stage.json {
+		expressions = {
+			level             = "level",
+			message           = "msg",
+			"service_name"    = "service.name",
+			"service_version" = "service.version",
+			"span.id"         = "span.id",
+			timestamp         = "ts",
+			"trace.id"        = "trace.id",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level           = "",
+			service_name    = "",
+			service_version = "",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339"
+	}
+
+  stage.template {
+    source = "new"
+    template = "{{.timestamp}}  {{.level}} - service: {{.service.name}} ({{.service.version}}) - msg: {{.msg}} - caller: {{.caller}} - trace_id: {{.trace.id}}"
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
