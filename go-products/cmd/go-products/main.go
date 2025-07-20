@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"time"
 
 	"go-products/internal/conf"
 	"go-products/internal/data/product"
@@ -17,6 +18,7 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 
 	_ "go.uber.org/automaxprocs"
@@ -85,6 +87,43 @@ func newApp(logger log.Logger, gs *grpc.Server, hs *http.Server) *kratos.App {
 	)
 }
 
+func DBConfig(cf *conf.Data) *pgxpool.Config {
+	const defaultMaxConns = int32(4)
+	const defaultMinConns = int32(0)
+	const defaultMaxConnLifetime = time.Hour
+	const defaultMaxConnIdleTime = time.Minute * 30
+	const defaultHealthCheckPeriod = time.Minute
+	const defaultConnectTimeout = time.Second * 5
+
+	dbConfig, err := pgxpool.ParseConfig(cf.Database.Source)
+	if err != nil {
+		log.Fatal("Failed to create a config, error: ", err)
+	}
+
+	dbConfig.MaxConns = defaultMaxConns
+	dbConfig.MinConns = defaultMinConns
+	dbConfig.MaxConnLifetime = defaultMaxConnLifetime
+	dbConfig.MaxConnIdleTime = defaultMaxConnIdleTime
+	dbConfig.HealthCheckPeriod = defaultHealthCheckPeriod
+	dbConfig.ConnConfig.ConnectTimeout = defaultConnectTimeout
+
+	dbConfig.BeforeAcquire = func(ctx context.Context, c *pgx.Conn) bool {
+		log.Error("Before acquiring the connection pool to the database!!")
+		return true
+	}
+
+	dbConfig.AfterRelease = func(c *pgx.Conn) bool {
+		log.Error("After releasing the connection pool to the database!!")
+		return true
+	}
+
+	dbConfig.BeforeClose = func(c *pgx.Conn) {
+		log.Error("Closed the connection pool to the database!!")
+	}
+
+	return dbConfig
+}
+
 func main() {
 	flag.Parse()
 	ctx := context.Background()
@@ -118,7 +157,12 @@ func main() {
 	)
 	log.SetLogger(logger)
 
-	db, err := pgx.Connect(ctx, bc.Data.Database.Source)
+	connPool, err := pgxpool.NewWithConfig(ctx, DBConfig(bc.GetData()))
+	if err != nil {
+		panic(err)
+	}
+
+	db, err := connPool.Acquire(ctx)
 	if err != nil {
 		panic(err)
 	}

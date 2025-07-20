@@ -9,7 +9,7 @@ package main
 import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	product2 "go-products/internal/biz/product"
 	"go-products/internal/conf"
 	"go-products/internal/data/product"
@@ -25,7 +25,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(bootstrap *conf.Bootstrap, conn *pgx.Conn, tracer trace.Tracer, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
+func wireApp(bootstrap *conf.Bootstrap, conn *pgxpool.Conn, tracer trace.Tracer, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
 	iProductUsecase := product2.NewProductUsecase(bootstrap, tracer, queries)
 	productsService := service.NewProductsService(bootstrap, tracer, iProductUsecase)
 	grpcServer := server.NewGRPCServer(bootstrap, productsService)

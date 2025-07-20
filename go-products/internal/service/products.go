@@ -37,9 +37,7 @@ func (s *ProductsService) CreateProducts(ctx context.Context, req *pb.CreateProd
 
 	if len(req.Products) == 0 || req.Products[0].Name == "" {
 		err := errors.New("product(s) is empty")
-		log.Context(ctx).Errorw("msg", "Unable to add product(s)!", map[string]interface{}{
-			"error": err,
-		})
+		log.Context(ctx).Errorw("msg", "Unable to add product(s)!", "error", err)
 		return nil, err
 	}
 
@@ -54,9 +52,7 @@ func (s *ProductsService) CreateProducts(ctx context.Context, req *pb.CreateProd
 	}
 
 	if err := s.productUc.CreateProducts(ctx, products); err != nil {
-		log.Context(ctx).Errorw("msg", "Cannot insert product(s)!", map[string]interface{}{
-			"error": err,
-		})
+		log.Context(ctx).Errorw("msg", "Cannot insert product(s)!", "error", err)
 		return nil, err
 	}
 
@@ -73,9 +69,7 @@ func (s *ProductsService) UpdateProducts(ctx context.Context, req *pb.UpdateProd
 
 	if req.Product == nil || req.Product.SKU == "" {
 		err := errors.New("product data or SKU is missing")
-		log.Context(ctx).Errorw("msg", "Invalid update request", map[string]interface{}{
-			"error": err,
-		})
+		log.Context(ctx).Errorw("msg", "Invalid update request", "error", err)
 		return &pb.UpdateProductsReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -92,9 +86,7 @@ func (s *ProductsService) UpdateProducts(ctx context.Context, req *pb.UpdateProd
 
 	_, err := s.productUc.UpdateProduct(ctx, product)
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Failed to update product", map[string]interface{}{
-			"error": err,
-		})
+		log.Context(ctx).Errorw("msg", "Failed to update product", "error", err)
 		return &pb.UpdateProductsReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -116,7 +108,7 @@ func (s *ProductsService) DeleteProducts(ctx context.Context, req *pb.DeleteProd
 
 	if req.Sku == "" {
 		err := errors.New("SKU is required for deletion")
-		log.Context(ctx).Errorw("msg", "DeleteProducts error", map[string]interface{}{"error": err})
+		log.Context(ctx).Errorw("msg", "DeleteProducts error", "error", err)
 		return &pb.DeleteProductsReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -125,7 +117,7 @@ func (s *ProductsService) DeleteProducts(ctx context.Context, req *pb.DeleteProd
 	}
 
 	if err := s.productUc.DeleteProduct(ctx, req.Sku); err != nil {
-		log.Context(ctx).Errorw("msg", "Failed to delete product", map[string]interface{}{"error": err})
+		log.Context(ctx).Errorw("msg", "Failed to delete product", "error", err)
 		return &pb.DeleteProductsReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -147,7 +139,7 @@ func (s *ProductsService) GetProduct(ctx context.Context, req *pb.GetProductRequ
 
 	if req.Sku == "" && req.Id == 0 {
 		err := errors.New("must provide SKU or ID")
-		log.Context(ctx).Errorw("msg", "Invalid GetProducts request", map[string]interface{}{"error": err})
+		log.Context(ctx).Errorw("msg", "Invalid GetProducts request", "error", err)
 		return &pb.GetProductReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -167,7 +159,7 @@ func (s *ProductsService) GetProduct(ctx context.Context, req *pb.GetProductRequ
 	}
 
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Failed to fetch product", map[string]interface{}{"error": err})
+		log.Context(ctx).Errorw("msg", "Failed to fetch product", "error", err)
 		return &pb.GetProductReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},
@@ -198,7 +190,7 @@ func (s *ProductsService) ListProducts(ctx context.Context, req *pb.ListProducts
 
 	products, err := s.productUc.FetchProducts(ctx, req.Page, req.PageSize)
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Failed to list products", map[string]interface{}{"error": err})
+		log.Context(ctx).Errorw("msg", "Failed to list products", "error", err)
 		return &pb.ListProductsReply{
 			Meta: &pb.CommonResponse{
 				Error: &pb.Error{Code: uuid.NewString(), Reason: err.Error()},

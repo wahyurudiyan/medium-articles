@@ -48,9 +48,7 @@ func (uc *usecase) CreateProducts(ctx context.Context, products []productRepo.Cr
 		batchItems := products[i:end]
 
 		data, _ := json.Marshal(batchItems)
-		log.Context(ctx).Debugw("msg", "Creating products", map[string]interface{}{
-			"batch.id": i, "products": string(data),
-		})
+		log.Context(ctx).Debugw("msg", "Creating products", "batch.id", i, "products", string(data))
 		if _, err := uc.productRepo.CreateProducts(ctx, batchItems); err != nil {
 			return err
 		}
@@ -63,9 +61,7 @@ func (uc *usecase) FetchProducts(ctx context.Context, page int32, limit int32) (
 	ctx, span := uc.tracer.Start(ctx, "biz.IProductUsecase.FetchProducts")
 	defer span.End()
 
-	log.Context(ctx).Debugw("msg", "Fetching list of products", map[string]interface{}{
-		"page": page, "page_size": limit,
-	})
+	log.Context(ctx).Debugw("msg", "Fetching list of products", "page", page, "page_size", limit)
 
 	if page <= 0 {
 		page = 1
@@ -74,15 +70,11 @@ func (uc *usecase) FetchProducts(ctx context.Context, page int32, limit int32) (
 
 	products, err := uc.productRepo.ReadListProducts(ctx, productRepo.ReadListProductsParams{Offset: int32(offset), Limit: limit})
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Error occur when updating product by ID!", map[string]interface{}{
-			"page": page, "page_size": limit,
-		})
+		log.Context(ctx).Errorw("msg", "Error occur when updating product by ID!", "page", page, "page_size", limit)
 		return nil, err
 	}
 
-	log.Context(ctx).Debugw("msg", "Products successfully loaded", map[string]interface{}{
-		"page": page, "page_size": limit,
-	})
+	log.Context(ctx).Debugw("msg", "Products successfully loaded", "page", page, "page_size", limit)
 
 	return products, nil
 }
@@ -91,21 +83,16 @@ func (uc *usecase) FetchProductByID(ctx context.Context, id int64) (*productRepo
 	ctx, span := uc.tracer.Start(ctx, "biz.IProductUsecase.FetchProductByID")
 	defer span.End()
 
-	log.Context(ctx).Debugw("msg", "Fetching product (by ID)", map[string]interface{}{
-		"product.id": id,
-	})
+	log.Context(ctx).Debugw("msg", "Fetching product (by ID)", "product.id", id)
 
 	product, err := uc.productRepo.ReadProductByID(ctx, id)
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Error occur when reading product by ID!", map[string]interface{}{
-			"product.sku": product.Sku, "product.name": product.Name,
-		})
+		log.Context(ctx).Errorw("msg", "Error occur when reading product by ID!",
+			"product.sku", product.Sku, "product.name", product.Name)
 		return nil, err
 	}
 
-	log.Context(ctx).Debugw("msg", "Product found!", map[string]interface{}{
-		"product.id": id,
-	})
+	log.Context(ctx).Debugw("msg", "Product found!", "product.id", id)
 
 	return &product, nil
 }
@@ -114,21 +101,16 @@ func (uc *usecase) FetchProductBySKU(ctx context.Context, sku string) (*productR
 	ctx, span := uc.tracer.Start(ctx, "biz.IProductUsecase.FetchProductBySKU")
 	defer span.End()
 
-	log.Context(ctx).Debugw("msg", "Fetching product (by SKU)", map[string]interface{}{
-		"product.sku": sku,
-	})
+	log.Context(ctx).Debugw("msg", "Fetching product (by SKU)", "product.sku", sku)
 
 	product, err := uc.productRepo.ReadProductBySKU(ctx, sku)
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Error occur when reading product by SKU!", map[string]interface{}{
-			"product.sku": product.Sku, "product.name": product.Name,
-		})
+		log.Context(ctx).Errorw("msg", "Error occur when reading product by SKU!",
+			"product.sku", product.Sku, "product.name", product.Name)
 		return nil, err
 	}
 
-	log.Context(ctx).Debugw("msg", "Product found!", map[string]interface{}{
-		"product.sku": sku,
-	})
+	log.Context(ctx).Debugw("msg", "Product found!", "product.sku", sku)
 
 	return &product, nil
 }
@@ -137,9 +119,8 @@ func (uc *usecase) UpdateProduct(ctx context.Context, product *productRepo.Produ
 	ctx, span := uc.tracer.Start(ctx, "biz.IProductUsecase.UpdateProduct")
 	defer span.End()
 
-	log.Context(ctx).Debugw("msg", "Updating product", map[string]interface{}{
-		"product.sku": product.Sku, "product.name": product.Name,
-	})
+	log.Context(ctx).Debugw("msg", "Updating product",
+		"product.sku", product.Sku, "product.name", product.Name)
 
 	updatedProduct, err := uc.productRepo.UpdateProduct(ctx, productRepo.UpdateProductParams{
 		Sku:      product.Sku,
@@ -148,15 +129,13 @@ func (uc *usecase) UpdateProduct(ctx context.Context, product *productRepo.Produ
 		Quantity: product.Quantity,
 	})
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Error occur when updating product!", map[string]interface{}{
-			"product.sku": product.Sku, "product.name": product.Name,
-		})
+		log.Context(ctx).Errorw("msg", "Error occur when updating product!",
+			"product.sku", product.Sku, "product.name", product.Name)
 		return nil, err
 	}
 
-	log.Context(ctx).Debugw("msg", "Product updated successfully!", map[string]interface{}{
-		"product.sku": product.Sku, "product.name": product.Name,
-	})
+	log.Context(ctx).Debugw("msg", "Product updated successfully!",
+		"product.sku", product.Sku, "product.name", product.Name)
 
 	return &updatedProduct, nil
 }
@@ -165,21 +144,16 @@ func (uc *usecase) DeleteProduct(ctx context.Context, sku string) error {
 	ctx, span := uc.tracer.Start(ctx, "biz.IProductUsecase.DeleteProduct")
 	defer span.End()
 
-	log.Context(ctx).Debugw("msg", "Process deleting product", map[string]interface{}{
-		"sku": sku,
-	})
+	log.Context(ctx).Debugw("msg", "Process deleting product", "sku", sku)
 
 	_, err := uc.productRepo.SoftDeleteProduct(ctx, sku)
 	if err != nil {
-		log.Context(ctx).Errorw("msg", "Error occur when deleting product!", map[string]interface{}{
-			"error": err, "product.sku": sku,
-		})
+		log.Context(ctx).Errorw("msg", "Error occur when deleting product!",
+			"error", err, "product.sku", sku)
 		return err
 	}
 
-	log.Context(ctx).Debugw("msg", "Product deleted successfully!", map[string]interface{}{
-		"sku": sku,
-	})
+	log.Context(ctx).Debugw("msg", "Product deleted successfully!", "sku", sku)
 
 	return nil
 }

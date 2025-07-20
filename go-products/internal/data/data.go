@@ -1,11 +1,10 @@
 package data
 
 import (
-	"context"
 	"go-products/internal/conf"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -21,11 +20,9 @@ type Data struct {
 }
 
 // NewData .
-func NewData(c *conf.Bootstrap, conn *pgx.Conn, tracer trace.Tracer) (*Data, func(), error) {
+func NewData(c *conf.Bootstrap, conn *pgxpool.Conn, tracer trace.Tracer) (*Data, func(), error) {
 	cleanup := func() {
-		if err := conn.Close(context.Background()); err != nil {
-			log.Fatalw("data cleanup failed", map[string]string{"error": err.Error()})
-		}
+		conn.Release()
 		log.Info("closing the data resources")
 	}
 

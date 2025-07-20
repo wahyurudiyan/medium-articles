@@ -15,14 +15,14 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // wireApp init kratos application.
 func wireApp(
 	*conf.Bootstrap,
-	*pgx.Conn,
+	*pgxpool.Conn,
 	trace.Tracer,
 	log.Logger,
 	// inject repositories
