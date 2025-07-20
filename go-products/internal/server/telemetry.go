@@ -17,6 +17,7 @@ import (
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 )
 
 type ExporterType int
@@ -39,6 +40,7 @@ const (
 
 type telemetryOpt struct {
 	endpoint     string
+	serviceName  string
 	exporterType ExporterType
 	components   TelemetryComponent
 }
@@ -48,6 +50,12 @@ type TelemetryOpt func(*telemetryOpt)
 func WithEndpoint(endpoint string) TelemetryOpt {
 	return func(opt *telemetryOpt) {
 		opt.endpoint = endpoint
+	}
+}
+
+func WithServiceName(name string) TelemetryOpt {
+	return func(opt *telemetryOpt) {
+		opt.serviceName = name
 	}
 }
 
@@ -66,6 +74,7 @@ func WithComponents(c TelemetryComponent) TelemetryOpt {
 func applyTelemetryOpts(opts ...TelemetryOpt) *telemetryOpt {
 	opt := &telemetryOpt{
 		endpoint:     "localhost:4317",
+		serviceName:  "defaultServiceName",
 		exporterType: NoopExporter,
 		components:   TelemetryAll,
 	}
@@ -107,10 +116,11 @@ func initTracer(ctx context.Context, opt *telemetryOpt) (*tracesdk.TracerProvide
 	}
 
 	tp := tracesdk.NewTracerProvider(
-		tracesdk.WithSampler(tracesdk.ParentBased(tracesdk.TraceIDRatioBased(1.0))),
 		tracesdk.WithBatcher(exp),
+		tracesdk.WithSampler(tracesdk.AlwaysSample()),
 		tracesdk.WithResource(resource.NewSchemaless(
 			attribute.String("exporter", "otel"),
+			semconv.ServiceNameKey.String(opt.serviceName),
 		)),
 	)
 	otel.SetTracerProvider(tp)

@@ -21,6 +21,7 @@ message Bootstrap {
   Data data = 2;
   Apps application = 3;
   Logger logger = 4;
+  Telemetry telemetry = 5;
 }
 
 message Apps {
@@ -62,4 +63,8 @@ message Data {
   }
   Database database = 1;
   Redis redis = 2;
+}
+
+message Telemetry {
+  string endpoint = 1; 
 }

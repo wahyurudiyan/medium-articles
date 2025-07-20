@@ -12,6 +12,7 @@ services:
       - ./configs/container:/data/conf
     depends_on:
       - postgres
+
   postgres:
     image: postgres:17.5
     container_name: postgres
@@ -23,22 +24,54 @@ services:
       - "5432:5432"
     networks:
       - microservices
-  alloy:
-    image: grafana/alloy:latest
-    container_name: grafana-alloy
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+      - --enable-feature=native-histograms
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
     ports:
-      - "12345:12345"
-    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+      - "9090:9090"
     volumes:
-      - ./configs/grafana/config.alloy:/etc/alloy/config.alloy
-      # give access to running docker containers for discovery.docker
-      - /var/run/docker.sock:/var/run/docker.sock 
-      # give access to docker's log files directory (optional)
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro 
+      - ./configs/grafana/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
     depends_on:
       - application
     networks:
       - microservices
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: grafana-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "3200:3200"   # tempo
+      - "4317:4317"   # otlp grpc
+      - "4318:4318"   # otlp http
+      - "9095:9095"   # grpc server
+      - "7946:7946"   # memberlist
+    volumes:
+      - ./configs/grafana/tempo.yaml:/etc/tempo.yaml:ro
+      - grafana-tempo-data:/var/tempo
+    networks:
+      - microservices
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    user: "10001:10001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   loki:
     image: grafana/loki:latest
     container_name: grafana-loki
@@ -46,11 +79,36 @@ services:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - ./configs/grafana/loki.yaml:/etc/loki/local-config.yaml
+      - ./configs/grafana/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
     depends_on:
-      - alloy
+      - application
     networks:
       - microservices
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: grafana-alloy
+    ports:
+      - "12345:12345"
+    command: 
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./configs/grafana/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock 
+      - alloy-data:/var/lib/alloy
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    networks:
+      - microservices
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana-dashboard
@@ -61,11 +119,22 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceToMetrics
     restart: unless-stopped
+    depends_on:
+      - alloy
+      - tempo
+      - prometheus
     networks:
       - microservices
+
 networks:
   microservices:
+
 volumes:
   postgres:
   grafana-data:
+  grafana-tempo-data:
+  prometheus-data:
+  loki-data:
+  alloy-data:

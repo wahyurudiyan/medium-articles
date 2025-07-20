@@ -13,11 +13,13 @@ import (
 )
 
 // NewHTTPServer new an HTTP server.
-func NewHTTPServer(c *conf.Bootstrap, product *service.ProductsService) *http.Server {
+func NewHTTPServer(cf *conf.Bootstrap, product *service.ProductsService) *http.Server {
 	ctx := context.Background()
 	telemetry, err := InitTelemetry(ctx,
 		WithComponents(TelemetryTrace),
-		WithExporterType(ConsoleExporter),
+		WithExporterType(GRPCExporter),
+		WithServiceName(cf.Application.Name),
+		WithEndpoint(cf.Telemetry.GetEndpoint()),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +30,7 @@ func NewHTTPServer(c *conf.Bootstrap, product *service.ProductsService) *http.Se
 		log.Fatal(err)
 	}
 
-	cs := c.Server
+	cs := cf.Server
 	var opts = []http.ServerOption{
 		http.Middleware(
 			tracing.Server(

@@ -13,11 +13,13 @@ import (
 )
 
 // NewGRPCServer new a gRPC server.
-func NewGRPCServer(conf *conf.Bootstrap, product *service.ProductsService) *grpc.Server {
+func NewGRPCServer(cf *conf.Bootstrap, product *service.ProductsService) *grpc.Server {
 	ctx := context.Background()
 	telemetry, err := InitTelemetry(ctx,
-		WithExporterType(ConsoleExporter),
 		WithComponents(TelemetryTrace),
+		WithExporterType(GRPCExporter),
+		WithServiceName(cf.Application.Name),
+		WithEndpoint(cf.Telemetry.GetEndpoint()),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +30,7 @@ func NewGRPCServer(conf *conf.Bootstrap, product *service.ProductsService) *grpc
 		log.Fatal(err)
 	}
 
-	cs := conf.Server
+	serverConfig := cf.Server
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			tracing.Server(
@@ -37,14 +39,14 @@ func NewGRPCServer(conf *conf.Bootstrap, product *service.ProductsService) *grpc
 			recovery.Recovery(),
 		),
 	}
-	if cs.Grpc.Network != "" {
-		opts = append(opts, grpc.Network(cs.Grpc.Network))
+	if serverConfig.Grpc.Network != "" {
+		opts = append(opts, grpc.Network(serverConfig.Grpc.Network))
 	}
-	if cs.Grpc.Addr != "" {
-		opts = append(opts, grpc.Address(cs.Grpc.Addr))
+	if serverConfig.Grpc.Addr != "" {
+		opts = append(opts, grpc.Address(serverConfig.Grpc.Addr))
 	}
-	if cs.Grpc.Timeout != nil {
-		opts = append(opts, grpc.Timeout(cs.Grpc.Timeout.AsDuration()))
+	if serverConfig.Grpc.Timeout != nil {
+		opts = append(opts, grpc.Timeout(serverConfig.Grpc.Timeout.AsDuration()))
 	}
 	srv := grpc.NewServer(opts...)
 	productApi.RegisterProductsServer(srv, product)

@@ -5,6 +5,8 @@ logger:
   level: debug
   output: stdout
   encoder: json
+telemetry:
+  endpoint: alloy:4317
 server:
   http:
     addr: 0.0.0.0:8000

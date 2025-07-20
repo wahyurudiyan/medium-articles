@@ -7,6 +7,8 @@ livedebugging {
   enabled = true
 }
 
+/* Docker Discovery Configs */
+
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
@@ -20,6 +22,8 @@ discovery.relabel "ingestion_relabel" {
     target_label = "service_name"
     }
 }
+
+/* Grafana Loki Configs */
 
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
@@ -64,5 +68,33 @@ loki.process "default" {
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+/* OpenTelemetry Configs */
+
+otelcol.receiver.otlp "default" {
+  grpc {}
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.otlp.default.input]
+    traces  = [otelcol.exporter.otlp.default.input]
+  }
+}
+
+otelcol.exporter.otlp "default" {
+  client {
+    endpoint = "tempo:4317"
+	tls {
+            insecure             = true
+            insecure_skip_verify = true
+        }
   }
 }
