@@ -1,0 +1,20 @@
+global:
+  # How frequently to scrape targets by default.
+  scrape_interval: "10s"
+  # How frequently to evaluate rules.
+  evaluation_interval: "10s"
+
+# A list of scrape configurations.
+scrape_configs:
+  # The job name assigned to scraped metrics by default.
+  - job_name: prometheus
+    # List of labeled statically configured targets for this job.
+    static_configs:
+      # The targets specified by the static config.
+      - targets: [localhost:9090]
+  # The job name assigned to scraped metrics by default.
+  - job_name: tempo
+    # List of labeled statically configured targets for this job.
+    static_configs:
+      # The targets specified by the static config.
+      - targets: [tempo:3200]

@@ -1,0 +1,114 @@
+server:
+  # HTTP server listen port
+  http_listen_port: 3200
+  # gRPC server listen port
+  grpc_listen_port: 9095
+
+# Distributor config block
+distributor:
+  # receiver configuration for different protocols
+  # The config is passed down to OpenTelemetry receivers.
+  # By default, receivers listen to localhost and need a configured IP to
+  # listen on an external interface.
+  # For a production deployment, you should only enable the receivers you need.
+  receivers:
+    otlp:
+      protocols:
+        grpc: # default localhost:4317
+          endpoint: tempo:4317
+        http: # default localhost:4318
+          endpoint: tempo:4318
+
+# Ingester configuration block
+ingester:
+  # maximum size of a block before cutting it
+  # (default: 524288000 = 500MB)
+  max_block_bytes: 10_000_000
+
+  # maximum length of time before cutting a block
+  # (default: 30m)
+  max_block_duration: 5m
+
+# Compactors stream blocks from the storage backend, 
+# combine them and write them back. Values shown below are the defaults.
+compactor:
+  compaction:
+    # Optional. Duration to keep blocks. Default is 14 days (336h).
+    block_retention: 10m
+
+# Query Frontend configuration block
+query_frontend:
+  search:
+    duration_slo: 5s
+    throughput_bytes_slo: 1.073741824e+09
+    metadata_slo:
+      duration_slo: 5s
+      throughput_bytes_slo: 1.073741824e+09
+  trace_by_id:
+    duration_slo: 5s
+
+# querier config block
+querier:
+  # The query frontend turns both trace by id (/api/traces/<id>) and search (/api/search?<params>) requests
+  # into subqueries that are then pulled and serviced by the queriers.
+  # This value controls the overall number of simultaneous subqueries that the querier will service at once. It does
+  # not distinguish between the types of queries.
+  max_concurrent_queries: 15
+
+# Metrics-generator configuration block
+metrics_generator:
+  # Registry configuration
+  registry:
+    # A list of labels that will be added to all generated metrics.
+    external_labels:
+      source: tempo
+      cluster: docker-compose
+
+  # Storage and remote write configuration
+  storage:
+    # Path to store the WAL. Each tenant will be stored in its own subdirectory.
+    path: /var/tempo/generator/wal
+    # A list of remote write endpoints.
+    # https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
+    remote_write:
+      # The URL of the endpoint to send samples to.
+      - url: http://prometheus:9090/api/v1/write
+        # Enables sending of exemplars over remote write. Note that exemplar storage itself must be enabled for exemplars to be scraped in the first place.
+        send_exemplars: true
+  
+  # Configuration block for the Write Ahead Log (WAL)
+  traces_storage:
+    # Path to store the WAL files.
+    # Must be set.
+    # Example: "/var/tempo/generator/traces"
+    path: /var/tempo/generator/traces
+
+# Storage configuration for traces
+storage:
+  trace:
+    # The storage backend to use
+    # Should be one of "gcs", "s3", "azure" or "local" (only supported in the monolithic mode)
+    # CLI flag -storage.trace.backend
+    backend: local
+    # configuration block for the Write Ahead Log (WAL)
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/traces
+
+# Overrides configuration block
+overrides:
+  # Global ingestion limits configurations
+  defaults:
+    # Metrics-generator related overrides
+    metrics_generator:
+      # Per-user configuration of the metrics-generator processors. The following processors are
+      # supported:
+      #  - service-graphs
+      #  - span-metrics
+      #  - local-blocks
+      processors: [service-graphs, span-metrics, local-blocks]
+      # Configures the histogram implementation to use for span metrics and
+      # service graphs processors.  If native histograms are desired, the
+      # receiver must be configured to ingest native histograms.
+      generate_native_histograms: both

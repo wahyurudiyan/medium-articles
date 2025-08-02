@@ -1,0 +1,120 @@
+logging {
+  level = "info"
+  format = "logfmt"
+}
+
+livedebugging {
+  enabled = true
+}
+
+/* Docker Discovery Configs */
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "ingestion_relabel" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex = "/(.*)"
+    target_label = "service_name"
+    }
+}
+
+/* Grafana Loki Configs */
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.ingestion_relabel.output
+  forward_to = [loki.process.default.receiver]
+}
+
+loki.process "default" {
+	forward_to = [loki.write.local.receiver]
+
+	stage.json {
+		expressions = {
+			level             = "level",
+			message           = "msg",
+			"service_name"    = "service.name",
+			"service_version" = "service.version",
+			"span.id"         = "span.id",
+			timestamp         = "ts",
+			"trace.id"        = "trace.id",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level           = "",
+			service_name    = "",
+			service_version = "",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339"
+	}
+
+  stage.template {
+    source = "new"
+    template = "{{.timestamp}}  {{.level}} - service: {{.service.name}} ({{.service.version}}) - msg: {{.msg}} - caller: {{.caller}} - trace_id: {{.trace.id}}"
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+/* OpenTelemetry Configs */
+
+otelcol.receiver.otlp "default" {
+  grpc {}
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.otlp.default.input]
+    traces  = [otelcol.exporter.otlp.default.input]
+  }
+}
+
+otelcol.exporter.otlp "default" {
+  client {
+    endpoint = "tempo:4317"
+	tls {
+            insecure             = true
+            insecure_skip_verify = true
+        }
+  }
+}
+
+/* Docker as Prometheus Container Advisor (cAdvisor) */
+
+prometheus.exporter.cadvisor "docker" {
+  docker_host = "unix:///var/run/docker.sock"
+  storage_duration = "5m"
+}
+
+prometheus.scrape "scraper" {
+  targets    = prometheus.exporter.cadvisor.docker.targets
+  forward_to = [ prometheus.remote_write.local.receiver ]
+
+  scrape_interval = "10s"
+}
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
