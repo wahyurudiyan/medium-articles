@@ -77,7 +77,8 @@ otelcol.receiver.otlp "default" {
   grpc {}
 
   output {
-    metrics = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input,
+               otelcol.exporter.prometheus.mimir.input]
     traces  = [otelcol.processor.batch.default.input]
   }
 }
@@ -99,7 +100,11 @@ otelcol.exporter.otlp "default" {
   }
 }
 
-/* Docker as Prometheus Container Advisor (cAdvisor) */
+otelcol.exporter.prometheus "mimir" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+/* Prometheus Configs */
 
 prometheus.exporter.cadvisor "docker" {
   docker_host = "unix:///var/run/docker.sock"
@@ -116,5 +121,13 @@ prometheus.scrape "scraper" {
 prometheus.remote_write "local" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+/* Mimir Configs */
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9009/api/v1/push"
   }
 }

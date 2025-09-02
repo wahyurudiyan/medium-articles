@@ -147,6 +147,8 @@ func main() {
 	Version = bc.Application.GetVersion()
 
 	tracer := otel.Tracer(bc.Application.Name)
+	meter := otel.Meter(bc.Application.Name)
+
 	logger := log.With(
 		newZapLogger(bc.GetLogger()),
 		"caller", log.DefaultCaller,
@@ -174,6 +176,7 @@ func main() {
 		&bc,
 		db,
 		tracer,
+		meter,
 		logger,
 		productRepository,
 	)

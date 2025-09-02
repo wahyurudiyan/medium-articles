@@ -16,6 +16,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -24,6 +25,7 @@ func wireApp(
 	*conf.Bootstrap,
 	*pgxpool.Conn,
 	trace.Tracer,
+	metric.Meter,
 	log.Logger,
 	// inject repositories
 	*product.Queries,

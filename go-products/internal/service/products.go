@@ -12,21 +12,32 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ProductsService struct {
 	conf      *conf.Bootstrap
 	tracer    trace.Tracer
+	meter     metric.Meter
 	productUc product.IProductUsecase
 
+	counter metric.Int64Counter
 	pb.UnimplementedProductsServer
 }
 
-func NewProductsService(c *conf.Bootstrap, tracer trace.Tracer, productUc product.IProductUsecase) *ProductsService {
+func NewProductsService(c *conf.Bootstrap, tracer trace.Tracer, meter metric.Meter, productUc product.IProductUsecase) *ProductsService {
+	counter, err := meter.Int64Counter("products.create")
+	if err != nil {
+		log.Fatalw("msg", "Failed to create counter", "error", err)
+	}
+
 	return &ProductsService{
 		conf:      c,
 		tracer:    tracer,
+		meter:     meter,
+		counter:   counter,
 		productUc: productUc,
 	}
 }
@@ -34,6 +45,11 @@ func NewProductsService(c *conf.Bootstrap, tracer trace.Tracer, productUc produc
 func (s *ProductsService) CreateProducts(ctx context.Context, req *pb.CreateProductsRequest) (*pb.CreateProductsReply, error) {
 	ctx, span := s.tracer.Start(ctx, "products.ProductService.CreateProducts")
 	defer span.End()
+
+	s.counter.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("service", s.conf.Application.Name),
+		attribute.String("version", s.conf.Application.Version),
+	))
 
 	if len(req.Products) == 0 || req.Products[0].Name == "" {
 		err := errors.New("product(s) is empty")

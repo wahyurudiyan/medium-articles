@@ -15,6 +15,7 @@ import (
 	"go-products/internal/data/product"
 	"go-products/internal/server"
 	"go-products/internal/service"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -25,9 +26,9 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(bootstrap *conf.Bootstrap, conn *pgxpool.Conn, tracer trace.Tracer, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
+func wireApp(bootstrap *conf.Bootstrap, conn *pgxpool.Conn, tracer trace.Tracer, meter metric.Meter, logger log.Logger, queries *product.Queries) (*kratos.App, func(), error) {
 	iProductUsecase := product2.NewProductUsecase(bootstrap, tracer, queries)
-	productsService := service.NewProductsService(bootstrap, tracer, iProductUsecase)
+	productsService := service.NewProductsService(bootstrap, tracer, meter, iProductUsecase)
 	grpcServer := server.NewGRPCServer(bootstrap, productsService)
 	httpServer := server.NewHTTPServer(bootstrap, productsService)
 	app := newApp(logger, grpcServer, httpServer)

@@ -11,7 +11,8 @@ services:
     volumes:
       - ./configs/container:/data/conf
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
       
   postgres:
     image: postgres:17.5
@@ -24,6 +25,11 @@ services:
       - "5432:5432"
     networks:
       - microservices
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:latest
@@ -109,6 +115,19 @@ services:
       - microservices
     restart: unless-stopped
 
+  mimir:
+    image: grafana/mimir:latest
+    container_name: grafana-mimir
+    command: --config.file=/etc/mimir/mimir.yaml
+    ports:
+      - "9009:9009"
+    volumes:
+      - ./configs/grafana/mimir.yaml:/etc/mimir/mimir.yaml:ro
+      - mimir-data:/tmp/mimir
+    networks:
+      - microservices
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana-dashboard
@@ -138,3 +157,4 @@ volumes:
   prometheus-data:
   loki-data:
   alloy-data:
+  mimir-data:
